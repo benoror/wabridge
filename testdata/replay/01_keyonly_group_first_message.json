@@ -1,0 +1,29 @@
+{
+  "name": "keyonly_group_first_message",
+  "description": "A sender's first group message after a key change arrives as two parts with the same id: a pkmsg carrying only SenderKeyDistributionMessage (+ messageContextInfo), then the skmsg with the content. Regression for e9ecd0f: the key part must not be written or marked seen, the content part must land exactly once, and a redelivered copy must be deduped.",
+  "steps": [
+    {"op": "connected"},
+    {"op": "settle", "note": "connect with an empty inbox: no notice"},
+    {"op": "expect", "lines": 0, "pending": 0, "notices": 0},
+    {"op": "message", "note": "pkmsg part: sender key only", "ev": {
+      "id": "3A00000000000000K001", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "text", "push_name": "Member Two", "ts_offset_s": 5,
+      "message": {"senderKeyDistributionMessage": {"groupID": "120363000000000000@g.us", "axolotlSenderKeyDistributionMessage": "AAAA"},
+                  "messageContextInfo": {"messageSecret": "AAAA"}}}},
+    {"op": "expect", "lines": 0, "note": "key part writes nothing"},
+    {"op": "message", "note": "skmsg part: the content, same id", "ev": {
+      "id": "3A00000000000000K001", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "text", "push_name": "Member Two", "ts_offset_s": 5,
+      "message": {"conversation": "placeholder group text 1"}}},
+    {"op": "expect", "lines": 1, "line": {"index": 0, "fields": {
+      "id": "3A00000000000000K001", "type": "text", "text": "placeholder group text 1", "is_group": true,
+      "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net", "from_me": false}}},
+    {"op": "message", "note": "retry receipt / reconnect redelivers the content part", "ev": {
+      "id": "3A00000000000000K001", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "text", "push_name": "Member Two", "ts_offset_s": 5,
+      "message": {"conversation": "placeholder group text 1"}}},
+    {"op": "settle"},
+    {"op": "expect", "lines": 1, "notices": 1, "last_notice_count": 1, "pending": 0,
+     "note": "one line, one live notice; already announced so not pending for the next settle"}
+  ]
+}
