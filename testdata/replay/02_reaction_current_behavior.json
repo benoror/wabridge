@@ -1,0 +1,22 @@
+{
+  "name": "reaction_current_behavior",
+  "description": "A reaction (stanza type 'reaction', ReactionMessage) to a text in a group: the text is a normal inbound line and notice; the reaction is recorded as a 'reaction' line (no text) but is not pending/unhandled and adds nothing to the notice. Before 2026-10-19 the reaction was an empty-text line that counted toward the notice (count 2).",
+  "steps": [
+    {"op": "connected"},
+    {"op": "claim", "note": "empty inbox: claim offset 0, so later lines count as unhandled"},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000T001", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "text", "push_name": "Member Two", "ts_offset_s": 1,
+      "message": {"conversation": "placeholder text to react to"}}},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000R001", "chat": "120363000000000000@g.us", "sender": "333@s.whatsapp.net",
+      "is_group": true, "type": "reaction", "push_name": "Member Three", "ts_offset_s": 2,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": false, "ID": "3A00000000000000T001", "participant": "222@s.whatsapp.net"},
+                                      "text": "+", "senderTimestampMS": "1792200002000"}}}},
+    {"op": "expect", "lines": 2, "unhandled": 2, "line": {"index": 1, "fields": {
+      "id": "3A00000000000000R001", "type": "reaction", "reacted_id": "3A00000000000000T001", "emoji": "+"},
+      "absent": ["text", "removed", "quoted_id"]}},
+    {"op": "settle"},
+    {"op": "expect", "notices": 1, "last_notice_count": 2, "pending": 0, "note": "the reaction counts toward the notice like the text (2026-10-25)"}
+  ]
+}

@@ -1,0 +1,82 @@
+{
+ "name": "expired_lease_rewake",
+ "description": "A claim/done bot claims a message and crashes before done; the lease expires. The next reconnect's settle check wakes the routine once (gap found 2026-10-19, fixed: expired leases are announced once per lease id).",
+ "steps": [
+  {
+   "op": "claim"
+  },
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000L001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 5,
+    "message": {
+     "conversation": "placeholder text L"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 1
+  },
+  {
+   "op": "claim_abandon"
+  },
+  {
+   "op": "advance",
+   "seconds": 120,
+   "note": "lease TTL passes"
+  },
+  {
+   "op": "expect",
+   "unhandled": 1
+  },
+  {
+   "op": "connected",
+   "note": "reconnect"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 2,
+   "last_notice_count": 1,
+   "note": "expired lease should wake the routine once"
+  },
+  {
+   "op": "connected",
+   "note": "another reconnect"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 2,
+   "note": "announced once only"
+  },
+  {
+   "op": "claim_done"
+  },
+  {
+   "op": "expect",
+   "unhandled": 0,
+   "pending": 0
+  }
+ ]
+}

@@ -1,0 +1,216 @@
+{
+ "name": "expired_lease_periodic_and_cap",
+ "description": "Dead runs are noticed without a reconnect (periodic lease check), each expired lease id is announced exactly once, a re-claimed range that dies again is announced again, at most 3 times per range (poison message), and the cap resets for a new range.",
+ "steps": [
+  {
+   "op": "claim"
+  },
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000L001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 5,
+    "message": {
+     "conversation": "placeholder text L001"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 1
+  },
+  {
+   "op": "claim_abandon",
+   "note": "run 1 claims and dies"
+  },
+  {
+   "op": "lease_tick",
+   "note": "lease still live: nothing"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 1,
+   "pending": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 120
+  },
+  {
+   "op": "lease_tick",
+   "note": "expired, no reconnect needed"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 2,
+   "last_notice_count": 1,
+   "unhandled": 1,
+   "pending": 0
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 2,
+   "note": "same lease never announced twice (tick or reconnect)"
+  },
+  {
+   "op": "restart",
+   "note": "announcement survives a process restart"
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 2
+  },
+  {
+   "op": "claim_abandon",
+   "note": "run 2 re-claims (new lease id) and dies"
+  },
+  {
+   "op": "advance",
+   "seconds": 120
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 3,
+   "last_notice_count": 1
+  },
+  {
+   "op": "claim_abandon",
+   "note": "run 3 dies too"
+  },
+  {
+   "op": "advance",
+   "seconds": 120
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 4,
+   "note": "3rd expiry announcement of this range"
+  },
+  {
+   "op": "claim_abandon",
+   "note": "run 4 dies: poison message"
+  },
+  {
+   "op": "advance",
+   "seconds": 120
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 4,
+   "unhandled": 1,
+   "pending": 0,
+   "note": "capped at 3 per range; still claimable"
+  },
+  {
+   "op": "claim_done",
+   "note": "finally handled"
+  },
+  {
+   "op": "expect",
+   "unhandled": 0,
+   "pending": 0
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000M001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 900,
+    "message": {
+     "conversation": "placeholder text M001"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 5,
+   "last_notice_count": 1
+  },
+  {
+   "op": "claim_abandon",
+   "note": "a new range dying is not affected by the old cap"
+  },
+  {
+   "op": "advance",
+   "seconds": 120
+  },
+  {
+   "op": "lease_tick"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "notices": 6,
+   "last_notice_count": 1
+  },
+  {
+   "op": "claim",
+   "note": "re-claim and hand back deliberately"
+  }
+ ]
+}
