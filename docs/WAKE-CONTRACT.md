@@ -56,7 +56,9 @@ If the agent crashes before `done`, the lease expires (TTL) and the bridge annou
 
 **[built]** Read `inbox.jsonl` directly and write `<profile>/last_handled` = `{"id","ts"}` of the
 newest line handled. The bridge counts only lines after the later of the claim offset and
-`last_handled` as pending.
+`last_handled` as pending. Every `inbox claim` also moves `last_handled` forward (never back), and
+update lines (`transcript_update`, `media_update`) never match the cursor, so mixing both styles
+cannot replay handled lines.
 
 ## 4. Inbox line format
 

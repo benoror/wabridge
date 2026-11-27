@@ -138,7 +138,11 @@ After every connect (including process start) it also checks after 15s: if `inbo
 return anything (lines after the claimed offset, or released/expired leases), it fires a notice
 (log: `webhook: N pending after ...; notice scheduled in ...`, then `webhook: notice sent`).
 "Unhandled" honours both cursors: the claim offset and `last_handled` (`{"id","ts"}`, the newest
-message a bot handled without claiming; the later of the two wins, for `claim` too). The settle
+message a bot handled without claiming; the later of the two wins, for `claim` too). They are one
+source of truth: every `claim` also moves `last_handled` forward to the last line it took, so a
+bot that still reads inbox.jsonl after `last_handled` can never replay lines a claim (or a fix done
+through `claim`/`done`) already handled. New integrations should use `inbox claim`/`done` only and
+never read inbox.jsonl or write `last_handled` themselves. The settle
 check (and the failed-notice retry) also only counts lines past the notified watermark
 (`claims/notified.json`, moved to the end of the inbox after every successful notice), so a
 reconnect never re-announces lines a notice already covered. Expired leases (a run claimed and died
