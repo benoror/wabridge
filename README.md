@@ -10,23 +10,29 @@ Single static Go binary. Built on [whatsmeow](https://github.com/tulir/whatsmeow
 
 ## Why another WhatsApp bridge?
 
-Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon holds the socket, and messages get pushed into a webhook or an in-memory queue. That breaks the moment your agent runs somewhere that pauses when idle (serverless-ish sandboxes, laptops, agent platforms that freeze a VM between turns).
+Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon holds the socket, and messages get pushed into a webhook or an in-memory queue. That breaks the moment your agent runs somewhere that pauses when idle (serverless-ish sandboxes, laptops, agent platforms that freeze a VM between turns). wabridge is built for that world.
 
-wabridge is built for that world:
+## Key features
 
-- **Durable inbox, not a webhook firehose.** Inbound messages are appended to a per-number JSONL inbox. Consumers claim lines under an expiring lease and mark them done. A crashed run's lines come back on their own.
-- **Content-free wake pings.** The webhook says "something is waiting": a count, a timestamp and the ids of chats with pending lines. No message text, no media, no media keys, no names. Message content never leaves the host.
-- **Exactly-once-ish delivery.** Dedupe by chat and message id, stable outbox ids, and send retries that reuse the same id so a retry never double-sends.
-- **Survives suspend and resume.** Frozen-gap detection reconnects within about a second of resume, every dial and connect has a hard deadline, and a watchdog falls back to exiting for the supervisor instead of wedging.
+**Core**
+
+- **Fast, single Go binary.** Pure Go (`CGO_ENABLED=0` works), one small process per number, no runtime or database server to install.
+- **Durable, persistent inbox.** Every inbound message is appended to a per-number `inbox.jsonl`. Consumers claim lines under an expiring lease and mark them done; a crashed or paused run's lines come back on their own. State survives restarts, crashes and host pauses.
+- **Exactly-once-ish delivery.** Dedupe by chat and message id, stable outbox ids, and send retries that reuse the same id, so a retry never double-sends.
+- **Survives suspend and resume.** Frozen-gap detection reconnects within about a second of resume, every dial and connect has a hard deadline, and a watchdog exits for the supervisor instead of wedging.
+- **Private by design.** Wake pings carry no message content (a count, a timestamp and chat ids). Messages, media and keys stay on the local disk.
 - **One process per number.** A logout, ban or hang on one number can't take the others down.
+- **Tested daily on my own workflows**, plus unit tests and a replay soak suite over synthetic fixtures (`scripts/soak.sh` must print `soak: OK` before any live restart).
 
-## What it handles today
+**WhatsApp**
 
-- Inbound: text, media (downloaded before the line is written), edits, deletes-for-everyone, reactions (including encrypted ones), poll votes, contacts, locations, and late offline-sync messages flagged `delayed` (never dropped).
-- Voice: inbound voice-note transcription with local whisper.cpp, and outbound voice notes via local TTS.
-- Outbound: chunked replies with stable per-chunk ids, quoted replies, forwards, images, documents, typing presence, and phone number to JID resolution.
-- Health: a status file with heartbeat and reconnect counters, keepalive and transport watchdogs, supervisor scripts, and a stream-replaced backoff.
-- Testing: a replay soak suite over synthetic fixtures. `scripts/soak.sh` must print `soak: OK` before any live restart.
+- **Voice notes with transcripts.** Inbound voice notes are transcribed locally with whisper.cpp (a later `transcript_update` line); outbound voice notes from an audio file or local TTS.
+- **Media and attachments, in and out.** Inbound images, video, audio, documents and stickers are downloaded before the line is written; outbound images and documents with captions.
+- **Edits, deletes and reactions.** Edits and deletes-for-everyone get their own line types; reactions (including encrypted ones) are recorded and can wake the agent.
+- **Groups.** Group messages carry the chat and the sender; claims split each batch by chat and sender, so each person can be answered separately.
+- **Replies, forwards, polls and typing.** Quoted replies, forwards, poll marking with vote wake-ups, chunked replies with stable per-chunk ids, and typing/recording presence.
+- **Contacts, locations and late messages.** Shared contacts and locations get real types; late offline-sync messages are flagged `delayed`, never dropped.
+- **Phone number or JID.** Send to a phone number and wabridge resolves the WhatsApp JID.
 
 ## Quickstart
 
@@ -96,9 +102,13 @@ If the host was suspended, WhatsApp holds the messages on its side and delivers 
 
 If you want a full WhatsApp CLI with searchable history and multi-account, use wacli. It's great. wabridge is narrower on purpose: the reliable inbox and outbox loop for an agent that isn't always awake.
 
+## Origin
+
+wabridge was originally developed to work with [Grok Bot](https://x.ai/bot), to work around agent turns and the box/VM sleep model: the agent isn't always running, and the machine it runs on pauses when idle. Nothing in the core depends on that platform, and it could be adapted to other AI assistants and environments with similar constraints (see the roadmap).
+
 ## Roadmap
 
-See [issues](https://github.com/benoror/wabridge/issues). The headline items are encrypted session backup, explicit handling for outdated-client, temporary-ban and connect-failure errors, a read-only `doctor` health command, send caps for new numbers, and an MCP server over the inbox and outbox.
+See [issues](https://github.com/benoror/wabridge/issues). Adapting wabridge to other AI assistants and environments with similar constraints (a configurable wake transport, generic examples) is on the list. The other headline items are encrypted session backup, explicit handling for outdated-client, temporary-ban and connect-failure errors, a read-only `doctor` health command, send caps for new numbers, and an MCP server over the inbox and outbox.
 
 ## Credits
 

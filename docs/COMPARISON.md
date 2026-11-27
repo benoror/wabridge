@@ -28,6 +28,13 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 | Dedupe | persisted chat+id set (`seen.log`) | store-level (upserts into `wacli.db`) |
 | Host suspend / resume | frozen-gap detection, ~1 s reconnect on resume, hard deadlines, wedge exit | not a stated goal; has `--max-reconnect`, `--stale-threshold` on sync |
 | Outbound | outbox files with stable ids and id-reusing retries; text, reply, forward, image, document, voice note (local TTS), typing | `send text` / `send file` (up to 2 GiB with `--max-size-mb`), delegation to a running `sync` |
+| Inbound media | downloaded before the inbox line is written (image, video, video note, audio, document, sticker) | `media` downloads synced media |
+| Voice notes | inbound transcription with local whisper.cpp (`transcript_update` line); outbound voice notes from a file or local TTS | not checked |
+| Edits / deletes | own line types (`edit`, `delete` for deletes-for-everyone) | not checked |
+| Reactions | recorded (including encrypted ones) and wake the agent | not checked |
+| Polls | mark a sent message as a poll; votes wake the agent | not checked |
+| Groups | chat + sender on every line; claims split per chat and sender | `groups` inspect and manage groups, communities and channels |
+| Contacts / locations | own line types | not checked |
 | Send pacing | none (see issue #1) | `--send-spacing DURATION|MIN-MAX` on sync |
 | Voice transcription | local whisper.cpp | no |
 | Read-only mode | no (proposed) | `--read-only` / `WACLI_READONLY=1` |
@@ -36,6 +43,8 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 | Dependency policy | none written (proposed) | 48-hour cooldown before taking dependency updates (CHANGELOG entries) |
 | MCP | no (issue #2) | none built in; docs describe a read-only wrapper pattern |
 | Tests | unit tests + replay soak suite over synthetic fixtures | large unit/regression suite, CI, CodeQL |
+
+"Not checked" means we did not verify that wacli feature against its docs; it is not a claim that wacli lacks it.
 
 ## Gaps in wabridge this table points to
 
