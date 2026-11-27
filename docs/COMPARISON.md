@@ -18,7 +18,7 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 |---|---|---|
 | Protocol library | whatsmeow | whatsmeow |
 | Build | pure Go (`modernc.org/sqlite`), builds with `CGO_ENABLED=0` | cgo + C compiler (`go-sqlite3`, `sqlite_fts5` tag) |
-| Distribution | build from source | Homebrew, release archives (macOS/Linux/Windows), Docker |
+| Distribution | release archives (Linux/macOS, amd64/arm64), `go install` | Homebrew, release archives (macOS/Linux/Windows), Docker |
 | Accounts | one process per number (`--profile`) | named accounts, each an isolated store (`--account`) |
 | Message storage | append-only `inbox.jsonl` per profile | SQLite store (`wacli.db`) with full-text search |
 | History backfill / search | re-link backfill from history sync for allowlisted chats (`history_chats.txt`); no search | yes (`history`, `messages search`) |
@@ -51,7 +51,6 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 - A read-only `doctor` command and a read-only mode.
 - A written dependency-update delay (wacli uses 48 h).
 - Send pacing / warm-up for new numbers (issue #1).
-- Release binaries (issue #9).
 
 ## Where wabridge is deliberately different
 

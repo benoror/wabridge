@@ -5,7 +5,8 @@ that links to one WhatsApp number as a linked device. One process per number (`w
 --profile NAME`); all state for a profile lives in `~/.whatsapp-bridge/NAME/` (mode 700).
 
 The design splits into a **generic core** (useful to any agent platform, or any program that wants
-a durable WhatsApp inbox) and a thin **Grok Bot-specific edge** (how the agent gets woken up).
+a durable WhatsApp inbox) and a thin **agent-platform edge** (how the agent gets woken up; originally built for Grok Bot, see
+the README's Origin note).
 
 ```
 WhatsApp ──ws──▶ wabridge run ──append──▶ inbox.jsonl ◀──claim/done── agent
@@ -33,13 +34,13 @@ WhatsApp ──ws──▶ wabridge run ──append──▶ inbox.jsonl ◀─
 Nothing in the core knows about any particular agent platform. A consumer only needs the files and
 the `wabridge inbox` / `wabridge send` CLI.
 
-## Grok Bot-specific edge
+## Agent-platform edge
 
 | Part | Where | Notes |
 |---|---|---|
-| Wake ping transport | `Notifier.Post` in `outbox.go`, `loadWebhook` / `loadWebhookKey` | One HTTP POST to `<profile>/webhook_url` with `Authorization: Bearer <webhook_key>` — the shape Grok Bot routine webhooks accept. Up to 3 attempts; 401/403 are not retried. URL and key are never logged. |
+| Wake ping transport | `Notifier.Post` in `outbox.go`, `loadWebhook` / `loadWebhookKey` | One HTTP POST to `<profile>/webhook_url` with `Authorization: Bearer <webhook_key>` — the shape most agent-platform webhooks accept (Grok Bot routine webhooks among them). Up to 3 attempts; 401/403 are not retried. URL and key are never logged. |
 | Ping body | `Notifier.flush` | `{"profile","count","latest_ts","chats":[...],"inbox_path"}`. No message text, captions, media or sender names. It **does** include the chat JIDs that have pending lines and the local inbox path (see the wake contract for the plan to make these optional). |
-| Routine hand-off | outside this repo | The webhook starts an agent turn; the agent then runs `wabridge inbox claim`, replies via `wabridge send` (with the lease's `msg_id` for idempotent acks), and calls `inbox done`. `ensure.sh` is meant to be the first step of each run. |
+| Routine hand-off | outside this repo ([`examples/`](../examples/) has a generic one) | The webhook starts an agent turn; the agent then runs `wabridge inbox claim`, replies via `wabridge send` (with the lease's `msg_id` for idempotent acks), and calls `inbox done`. `ensure.sh` is meant to be the first step of each run. |
 | Alerts | `scripts/timer.sh` | Optional: posts `{"alert":"bridge-timer",...}` (no message content) to the webhook of `$ALERT_PROFILE`. |
 
 Swapping in another platform means replacing only the POST target/auth; see

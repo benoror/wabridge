@@ -4,6 +4,10 @@ A small, platform-neutral contract between wabridge (the **bridge**) and whateve
 (the **host**). The bridge never pushes message content to the host; it only says "something is
 waiting". The agent then pulls and acknowledges through local files / CLI.
 
+Any assistant or agent runtime can be the host: all it needs is an HTTP endpoint that starts a run
+and the ability to run the `wabridge` CLI on the same machine. Working examples of both sides are in
+[`examples/`](../examples/).
+
 Status legend: **[built]** works today; **[proposed]** not implemented yet.
 
 ## 1. Wake ping (bridge → host)
@@ -29,9 +33,10 @@ Status legend: **[built]** works today; **[proposed]** not implemented yet.
 - Idempotent by design: a duplicate or spurious ping is harmless because the host always asks the
   inbox what is actually pending. A ping with `count: 0` only comes from `wabridge notify-test`
   (`"test": true`).
+- **[built]** A test guard (`TestWakePingNeverCarriesContent`) fails the build if any ping carries
+  message content or a key outside `profile`, `count`, `latest_ts`, `chats`, `inbox_path`.
 - **[proposed]** A "minimal" mode that sends only `{"profile","count","latest_ts"}` (drop `chats`
-  and `inbox_path`), so the ping carries no identifiers at all. Pairs with the content-free test
-  guard in issue #7.
+  and `inbox_path`), so the ping carries no identifiers at all.
 - **[proposed]** Pluggable auth (HMAC signature as an alternative to Bearer) for hosts that expect it.
 
 Host obligations: answer 2xx quickly (do the work asynchronously), treat the ping as a hint only,
@@ -74,10 +79,25 @@ Full reference: [USAGE.md](USAGE.md).
 running or the host was paused. `scripts/ensure.sh --check` reports per profile without starting
 anything.
 
-**[proposed]** `wabridge doctor` (read-only, all profiles, JSON) — see issue drafts.
+States: `starting`, `connected`, `disconnected`, `stream_replaced`, `logged_out`,
+`client_outdated`, `temp_banned`, `connect_failure`. The host should never restart a bridge in
+`logged_out`, `client_outdated` or `temp_banned`: those need a re-pair, an upgrade, or time.
+
+**[proposed]** `wabridge doctor` (read-only, all profiles, JSON), issue #14.
 
 ## 6. Proposed: transport adapters
 
 **[proposed]** Keep the CLI/file protocol as the source of truth and add thin adapters on top:
 an MCP server over claim / send / done (issue #2) and a generic webhook adapter config
-(`webhook.json`: url, auth scheme, body mode) so non-Grok hosts can plug in without code changes.
+(`webhook.json`: url, auth scheme, body mode) so any host can plug in without code changes.
+
+## 7. Host checklist
+
+1. Serve one endpoint that accepts `POST` with the Bearer key, answers 2xx within a second, and
+   starts one agent run (coalesce pings that arrive during a run into one follow-up run).
+2. In each run: optionally `scripts/ensure.sh <profile>` first, then `inbox claim`; nothing
+   pending means stop.
+3. Reply per group with `send --msg-id <group ack_msg_id>`, so a retried run cannot double-send.
+4. `inbox done` on success, `inbox release` on failure. A crash is fine too: the lease expires and
+   the bridge announces it again.
+5. Never treat the ping as the message: always read the inbox.
