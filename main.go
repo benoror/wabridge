@@ -513,6 +513,32 @@ func main() {
 						fmt.Fprintln(os.Stderr, time.Now().Format("15:04:05"), "replaced retry connect:", err)
 					}
 				})
+			case *events.ClientOutdated, *events.TemporaryBan, *events.ConnectFailure:
+				act, _ := classifyFailure(v)
+				fmt.Fprintln(os.Stderr, time.Now().Format("15:04:05"), act.State+":", act.Reason)
+				health.Set(act.State, act.Reason)
+				switch {
+				case act.Exit:
+					stop() // logged out: supervise.sh parks until a re-pair
+				case act.Halt:
+					// No restart loop: stay up idle with a clear state; ensure.sh reports it, never restarts it.
+					cl.EnableAutoReconnect = false
+					wd.Halt()
+					go bounded(4*time.Second, cl.Disconnect)
+					if act.RetryAfter > 0 {
+						time.AfterFunc(act.RetryAfter, func() {
+							if ctx.Err() != nil {
+								return
+							}
+							fmt.Fprintln(os.Stderr, time.Now().Format("15:04:05"), act.State+": retry window reached; reconnecting once")
+							wd.Resume()
+							cl.EnableAutoReconnect = true
+							if err := cl.Connect(); err != nil {
+								fmt.Fprintln(os.Stderr, time.Now().Format("15:04:05"), "reconnect after", act.State+":", err)
+							}
+						})
+					}
+				}
 			case *events.LoggedOut:
 				health.Set("logged_out", "re-pair required")
 				fmt.Fprintln(os.Stderr, "logged out; re-pair required")

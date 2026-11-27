@@ -116,7 +116,7 @@ wabridge was originally developed to work with [Grok Bot](https://x.ai/bot), to 
 
 ## Roadmap
 
-See [issues](https://github.com/benoror/wabridge/issues). Adapting wabridge to other AI assistants and environments with similar constraints (a configurable wake transport, generic examples) is on the list. The other headline items are encrypted session backup, explicit handling for outdated-client, temporary-ban and connect-failure errors, a read-only `doctor` health command, send caps for new numbers, and an MCP server over the inbox and outbox.
+See [issues](https://github.com/benoror/wabridge/issues). Adapting wabridge to other AI assistants and environments with similar constraints (a configurable wake transport, generic examples) is on the list. The other headline items are encrypted session backup, a read-only `doctor` health command, send caps for new numbers, and an MCP server over the inbox and outbox.
 
 ## Credits
 

@@ -93,12 +93,14 @@ type replayEvent struct {
 type fakeHook struct {
 	mu     sync.Mutex
 	counts []int
+	bodies [][]byte
 }
 
 func (h *fakeHook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b, _ := io.ReadAll(r.Body)
 	h.mu.Lock()
 	h.counts = append(h.counts, countOf(b))
+	h.bodies = append(h.bodies, b)
 	h.mu.Unlock()
 }
 
