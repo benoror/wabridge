@@ -1,0 +1,31 @@
+{
+  "name": "reaction_expected_improvement",
+  "description": "Reactions alone (implemented 2026-10-19, approved): a reaction to an earlier message is recorded with reacted_id + emoji, an empty emoji is a removal (removed: true), and neither is pending nor wakes the routine (no webhook notice). A later real message still notifies normally and counts only itself.",
+  "steps": [
+    {"op": "connected"},
+    {"op": "claim", "note": "empty inbox: claim offset 0, so later lines count as unhandled"},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000R001", "chat": "120363000000000000@g.us", "sender": "333@s.whatsapp.net",
+      "is_group": true, "type": "reaction", "push_name": "Member Three", "ts_offset_s": 2,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": false, "ID": "3A00000000000000T001", "participant": "222@s.whatsapp.net"},
+                                      "text": "+", "senderTimestampMS": "1792200002000"}}}},
+    {"op": "expect", "lines": 1, "line": {"index": 0, "fields": {
+      "type": "reaction", "reacted_id": "3A00000000000000T001", "reacted_from_me": false,
+      "reacted_sender": "222@s.whatsapp.net", "emoji": "+"}, "absent": ["text", "removed"]}},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000R002", "chat": "120363000000000000@g.us", "sender": "333@s.whatsapp.net",
+      "is_group": true, "type": "reaction", "push_name": "Member Three", "ts_offset_s": 3,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": false, "ID": "3A00000000000000T001", "participant": "222@s.whatsapp.net"},
+                                      "text": "", "senderTimestampMS": "1792200003000"}}}},
+    {"op": "expect", "lines": 2, "pending": 2, "unhandled": 2, "line": {"index": 1, "fields": {
+      "type": "reaction", "reacted_id": "3A00000000000000T001", "emoji": "", "removed": true}}},
+    {"op": "settle"},
+    {"op": "expect", "notices": 1, "last_notice_count": 2, "note": "reactions wake the routine (2026-10-25)"},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000T002", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "text", "push_name": "Member Two", "ts_offset_s": 4,
+      "message": {"conversation": "placeholder follow-up"}}},
+    {"op": "settle"},
+    {"op": "expect", "lines": 3, "notices": 2, "last_notice_count": 1, "unhandled": 3}
+  ]
+}

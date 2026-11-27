@@ -1,0 +1,182 @@
+{
+ "name": "reconnect_replay_already_handled",
+ "description": "After a pause, the offline sync redelivers messages that are already in the inbox and already handled (cursor bot: last_handled). Expect: no duplicate inbox lines (seen.log), settle check pending=0, no webhook notice. Repeated after a process restart (seen.log reloaded from disk).",
+ "steps": [
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   }
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "notices": 1,
+   "last_notice_count": 2
+  },
+  {
+   "op": "bot_handled",
+   "id": "3A00000000000000B001"
+  },
+  {
+   "op": "expect",
+   "pending": 0,
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 600,
+   "note": "box paused 10 min"
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 1"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   },
+   "note": "offline-sync replay of an already-seen message"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   },
+   "note": "replay"
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "unhandled": 0
+  },
+  {
+   "op": "restart",
+   "note": "supervisor restart: seen.log persisted"
+  },
+  {
+   "op": "advance",
+   "seconds": 600,
+   "note": "box paused 10 min"
+  },
+  {
+   "op": "connected",
+   "note": "reconnect after restart"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   },
+   "note": "offline-sync replay of an already-seen message"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   },
+   "note": "replay"
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "unhandled": 0
+  }
+ ]
+}

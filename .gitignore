@@ -1,0 +1,22 @@
+# Built binaries (never commit)
+/wabridge
+/wabridge.*
+*.exe
+# Runtime state: sessions, inboxes, media, logs, secrets (never commit)
+.whatsapp-bridge/
+*.db
+*.db-*
+session.db*
+inbox.jsonl
+seen.log
+media/
+outbox/
+claims/
+*.log
+*-qr.png
+webhook_url
+webhook_key
+status.json
+.env
+.env.*
+ISSUES-DRAFT.md

@@ -1,0 +1,198 @@
+{
+ "name": "repeated_reconnects_no_reannounce",
+ "description": "Regression for the ~25 empty routine runs (cc510f0): several reconnects in a row (one across a process restart) with messages handled via last_handled and a stale claim offset must not re-announce anything.",
+ "steps": [
+  {
+   "op": "claim",
+   "note": "an old claim fixed the claim offset; the bot then switched to last_handled (2026-10-18)"
+  },
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   }
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "notices": 1,
+   "last_notice_count": 2
+  },
+  {
+   "op": "bot_handled",
+   "id": "3A00000000000000B001",
+   "note": "no claim/done"
+  },
+  {
+   "op": "advance",
+   "seconds": 45
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 1"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "note": "reconnect 1 must not re-announce",
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 75
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 2"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "note": "reconnect 2 must not re-announce",
+   "unhandled": 0
+  },
+  {
+   "op": "restart"
+  },
+  {
+   "op": "advance",
+   "seconds": 105
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 3"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "note": "reconnect 3 must not re-announce",
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 135
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 4"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "note": "reconnect 4 must not re-announce",
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 165
+  },
+  {
+   "op": "connected",
+   "note": "reconnect 5"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "note": "reconnect 5 must not re-announce",
+   "unhandled": 0
+  }
+ ]
+}

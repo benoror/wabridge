@@ -1,0 +1,202 @@
+{
+ "name": "reconnect_replay_claim_bot",
+ "description": "3a for a claim/done bot (claim/done style): handled lines are claimed and done; replays after reconnect add nothing and notify nothing.",
+ "steps": [
+  {
+   "op": "claim"
+  },
+  {
+   "op": "connected"
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   }
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   }
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "notices": 1,
+   "last_notice_count": 2
+  },
+  {
+   "op": "claim_done"
+  },
+  {
+   "op": "expect",
+   "pending": 0,
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 600,
+   "note": "box paused 10 min"
+  },
+  {
+   "op": "connected",
+   "note": "reconnect"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   },
+   "note": "offline-sync replay of an already-seen message"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   },
+   "note": "replay"
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 2,
+   "pending": 0,
+   "notices": 1,
+   "unhandled": 0
+  },
+  {
+   "op": "advance",
+   "seconds": 600,
+   "note": "box paused 10 min"
+  },
+  {
+   "op": "connected",
+   "note": "reconnect with one new"
+  },
+  {
+   "op": "offline_sync",
+   "active": true
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000A001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 10,
+    "message": {
+     "conversation": "placeholder text A"
+    }
+   },
+   "note": "offline-sync replay of an already-seen message"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000B001",
+    "chat": "111@s.whatsapp.net",
+    "sender": "111@s.whatsapp.net",
+    "is_group": false,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 20,
+    "message": {
+     "conversation": "placeholder text B"
+    }
+   },
+   "note": "replay"
+  },
+  {
+   "op": "message",
+   "ev": {
+    "id": "3A00000000000000C001",
+    "chat": "120363000000000000@g.us",
+    "sender": "222@s.whatsapp.net",
+    "is_group": true,
+    "type": "text",
+    "push_name": "Member Two",
+    "ts_offset_s": 900,
+    "message": {
+     "conversation": "placeholder text C"
+    }
+   }
+  },
+  {
+   "op": "offline_sync",
+   "active": false
+  },
+  {
+   "op": "settle"
+  },
+  {
+   "op": "expect",
+   "lines": 3,
+   "notices": 2,
+   "last_notice_count": 1
+  },
+  {
+   "op": "claim_done"
+  },
+  {
+   "op": "expect",
+   "pending": 0,
+   "unhandled": 0
+  }
+ ]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "poll_vote_wakes",
+  "description": "A bot sends a group poll and marks it (send --poll / wabridge poll). Someone's reaction to the marked poll is written as a 'poll_vote' line: pending, unhandled and announced (wakes the routine). A reaction to an unmarked own message stays a recorded-only 'reaction', and the bot's own reaction to its poll never wakes it.",
+  "steps": [
+    {"op": "connected"},
+    {"op": "claim", "note": "empty inbox: claim offset 0, so later lines count as unhandled"},
+    {"op": "message", "ev": {
+      "id": "3EB0000000000000P001", "chat": "120363000000000000@g.us", "sender": "111@s.whatsapp.net", "from_me": true,
+      "is_group": true, "type": "text", "ts_offset_s": 1,
+      "message": {"conversation": "placeholder poll text"}}},
+    {"op": "message", "ev": {
+      "id": "3EB0000000000000N001", "chat": "120363000000000000@g.us", "sender": "111@s.whatsapp.net", "from_me": true,
+      "is_group": true, "type": "text", "ts_offset_s": 1,
+      "message": {"conversation": "placeholder non-poll text"}}},
+    {"op": "mark_poll", "id": "3EB0000000000000P001"},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000R101", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "reaction", "push_name": "Member Two", "ts_offset_s": 2,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": true, "ID": "3EB0000000000000N001"},
+                                      "text": "+", "senderTimestampMS": "1792200002000"}}}},
+    {"op": "settle"},
+    {"op": "expect", "lines": 3, "unhandled": 1, "notices": 1, "line": {"index": 2, "fields": {"type": "reaction", "reacted_id": "3EB0000000000000N001"}},
+     "note": "reaction to an unmarked message: wakes like any reaction"},
+    {"op": "message", "ev": {
+      "id": "3A00000000000000R102", "chat": "120363000000000000@g.us", "sender": "222@s.whatsapp.net",
+      "is_group": true, "type": "reaction", "push_name": "Member Two", "ts_offset_s": 3,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": true, "ID": "3EB0000000000000P001"},
+                                      "text": "+", "senderTimestampMS": "1792200003000"}}}},
+    {"op": "expect", "lines": 4, "unhandled": 2, "line": {"index": 3, "fields": {
+      "id": "3A00000000000000R102", "type": "poll_vote", "reacted_id": "3EB0000000000000P001", "reacted_from_me": true, "emoji": "+"},
+      "absent": ["text", "removed"]}},
+    {"op": "settle"},
+    {"op": "expect", "notices": 2, "last_notice_count": 1, "note": "the poll vote wakes the routine"},
+    {"op": "message", "ev": {
+      "id": "3EB0000000000000R103", "chat": "120363000000000000@g.us", "sender": "111@s.whatsapp.net", "from_me": true,
+      "is_group": true, "type": "reaction", "ts_offset_s": 4,
+      "message": {"reactionMessage": {"key": {"remoteJID": "120363000000000000@g.us", "fromMe": true, "ID": "3EB0000000000000P001"},
+                                      "text": "+", "senderTimestampMS": "1792200004000"}}}},
+    {"op": "settle"},
+    {"op": "expect", "lines": 5, "unhandled": 2, "notices": 2, "line": {"index": 4, "fields": {"type": "reaction"}},
+     "note": "own reaction to own poll: recorded only"}
+  ]
+}
