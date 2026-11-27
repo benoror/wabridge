@@ -78,8 +78,9 @@ for p in "${profiles[@]}"; do
     st_now=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("state",""))' "$dir/status.json" 2>/dev/null)
     if [ -f "$dir/supervise.parked" ]; then
       echo "$p: not ok (logged_out; supervisor $pid parked since $(parked_since "$dir/supervise.parked"), re-pair required, no restart) $(status_line "$p")"; rc=1
-    elif [ "$st_now" = stream_replaced ] || [ "$st_now" = logged_out ]; then
-      # Alert only: the bridge retries stream_replaced itself; never restart it from here.
+    elif [ "$st_now" = stream_replaced ] || [ "$st_now" = logged_out ] || [ "$st_now" = client_outdated ] || [ "$st_now" = temp_banned ]; then
+      # Alert only: the bridge retries stream_replaced / temp_banned itself, client_outdated needs an
+      # upgrade and logged_out a re-pair; restarting would only loop. Never restart it from here.
       echo "$p: not ok ($st_now; supervisor $pid alive, no restart) $(status_line "$p")"; rc=1
     elif [ "$age" -gt 180 ]; then
       # Heartbeat is every 30s; old means the child is not running or the box just resumed.

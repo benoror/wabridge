@@ -11,7 +11,8 @@ import (
 // Status is <profile>/status.json, readable by supervise.sh, scripts/ensure.sh and humans.
 // States: starting, connected, disconnected, stream_replaced (terminal: another client took
 // the session; the process idles instead of exiting so the supervisor does not restart-loop
-// into a fight), logged_out.
+// into a fight), logged_out, client_outdated (405), temp_banned (402), connect_failure (other
+// server-reported failure; reconnects continue). See connfail.go.
 //
 // "state" alone is not health: a frozen (paused box) or dead process leaves "connected"
 // behind. TS is a heartbeat rewritten every StatusBeat by the running bridge, so a TS older

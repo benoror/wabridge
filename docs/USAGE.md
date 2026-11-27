@@ -227,7 +227,16 @@ behind. The running bridge rewrites `status.json` every 30s (`ts` = heartbeat) w
 `started_at`, `connected_at`, `last_frame_at` (last inbound frame, keepalive pongs
 included), `last_event_at` (any whatsmeow event), `last_message_at` (last message;
 absent = none since start), `reconnects`, `last_reconnect` ("<time> <reason>") and
-`last_gap`. States: starting, connected, disconnected, stream_replaced, logged_out.
+`last_gap`. States: starting, connected, disconnected, stream_replaced, logged_out,
+client_outdated, temp_banned, connect_failure.
+
+Server-reported connect failures get explicit states and never a restart loop:
+`client_outdated` (405: WhatsApp rejected this client version; the bridge stops reconnecting and
+stays up idle until you upgrade and restart it), `temp_banned` (402: stops reconnecting and tries
+once more after the ban's expiry plus 5 min, or after 6 h when no expiry is given),
+`logged_out` (401/403/406: exits, and `supervise.sh` parks until a re-pair) and `connect_failure`
+(anything else; informational, normal reconnects continue). `ensure.sh` reports the first three
+as `not ok` and never restarts them.
 
 `ts` older than ~2 min means the bridge is not running or the host was paused.
 The host gets paused when idle. Every bridge on it freezes at the same moment, and on

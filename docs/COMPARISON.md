@@ -39,16 +39,15 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 | Voice transcription | local whisper.cpp | no |
 | Read-only mode | no (proposed) | `--read-only` / `WACLI_READONLY=1` |
 | Health / doctor | `status.json` heartbeat, `ensure.sh --check` | `wacli doctor [--connect] [--json]` |
-| Explicit errors for outdated client / temporary ban | no (proposed) | handled in `internal/app/session_state.go`, `internal/wa/client.go` |
+| Explicit errors for outdated client / temporary ban | `client_outdated` (405), `temp_banned` (402), `logged_out` (401/403/406) states; no restart loop | handled in `internal/app/session_state.go`, `internal/wa/client.go` |
 | Dependency policy | none written (proposed) | 48-hour cooldown before taking dependency updates (CHANGELOG entries) |
 | MCP | no (issue #2) | none built in; docs describe a read-only wrapper pattern |
-| Tests | unit tests + replay soak suite over synthetic fixtures | large unit/regression suite, CI, CodeQL |
+| Tests | unit tests + replay soak suite over synthetic fixtures, CI with gofmt, vet, soak and a secret scan | large unit/regression suite, CI, CodeQL |
 
 "Not checked" means we did not verify that wacli feature against its docs; it is not a claim that wacli lacks it.
 
 ## Gaps in wabridge this table points to
 
-- Explicit handling for outdated client, temporary ban and connect failure.
 - A read-only `doctor` command and a read-only mode.
 - A written dependency-update delay (wacli uses 48 h).
 - Send pacing / warm-up for new numbers (issue #1).

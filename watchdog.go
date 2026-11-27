@@ -53,7 +53,7 @@ type Watchdog struct {
 	lastTransport  atomic.Int64  // unix nanos of last inbound frame
 	lastApp        atomic.Int64  // unix nanos of last application message
 	justReconn     atomic.Bool   // use TransportShort until the first frame after a reconnect
-	halted         atomic.Bool   // terminal state (StreamReplaced): never reconnect again
+	halted         atomic.Bool   // terminal state (client outdated, temporary ban): never reconnect until Resume
 
 	// Health counters for status.json (see Health).
 	lastMsg       atomic.Int64 // unix nanos of last application message (0 = none since start)
@@ -117,6 +117,9 @@ func (w *Watchdog) connected() (up, ok bool) {
 // Halt stops all reconnects for good (StreamReplaced is terminal; fighting it loops forever).
 func (w *Watchdog) Halt()        { w.halted.Store(true) }
 func (w *Watchdog) Halted() bool { return w.halted.Load() }
+
+// Resume lifts a Halt (a temporary ban whose expiry has passed).
+func (w *Watchdog) Resume() { w.halted.Store(false) }
 
 // TransportActivity records an inbound frame (called from the Recv logger hook).
 func (w *Watchdog) TransportActivity() {
