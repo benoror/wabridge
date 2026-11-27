@@ -153,7 +153,7 @@ func (r *replayRig) boot() {
 		t.Fatal(err)
 	}
 	r.ib = &Inbox{Dir: r.dir, Now: r.clk.Now}
-	r.notif = &Notifier{URL: r.url, Profile: "soak", InboxPath: f.Name(), Delay: 20 * time.Millisecond,
+	r.notif = &Notifier{URL: r.url, Profile: "soak", InboxPath: f.Name(), Delay: 250 * time.Millisecond,
 		Cooldown: 50 * time.Millisecond, Pending: r.ib.Pending, Snapshot: r.ib.NotifyMark, Log: r.logf}
 	ib := r.ib
 	r.notif.Mark = func(mk NoticeMark) { ib.MarkNotified(mk) }
