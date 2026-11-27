@@ -108,10 +108,8 @@ func readJSON(p string, v any) error {
 // one in <profile>/last_handled ({"id":..,"ts":..}, written by bots that track a cursor instead
 // of claim/done), or -1 if there is no such file or line.
 func (ib *Inbox) lastHandledEnd(inbox string) int64 {
-	var lh struct {
-		ID string `json:"id"`
-	}
-	if readJSON(filepath.Join(ib.Dir, "last_handled"), &lh) != nil || lh.ID == "" {
+	id := readLastHandledID(filepath.Join(ib.Dir, "last_handled"))
+	if id == "" {
 		return -1
 	}
 	f, err := os.Open(inbox)
@@ -133,7 +131,7 @@ func (ib *Inbox) lastHandledEnd(inbox string) int64 {
 		}
 		// Update lines (transcript_update, media_update) reuse the original message id; matching
 		// them would move the cursor past every line between the message and its late update.
-		if json.Unmarshal(line, &m) == nil && m.ID == lh.ID && !isUpdateLine(m.Type) {
+		if json.Unmarshal(line, &m) == nil && m.ID == id && !isUpdateLine(m.Type) {
 			found = off
 		}
 		if err != nil {
@@ -152,13 +150,41 @@ func completeSize(inbox string) int64 {
 	return int64(bytes.LastIndexByte(b, '\n') + 1)
 }
 
-// initOffset: first claim ever starts after the legacy cursor (last_handled id) if found, else at EOF,
-// so history is never replayed.
+// readLastHandledID accepts {"id":..,"ts":..} or a bare id on one line (some consumers write the
+// bare id). Without this a bare id failed JSON parsing, the cursor was ignored, and with no
+// claims/state.json every settle check started at EOF: 0 pending forever.
+func readLastHandledID(p string) string {
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	var lh struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(b, &lh) == nil {
+		return lh.ID
+	}
+	id := strings.Trim(strings.TrimSpace(string(b)), `"`)
+	if id == "" || strings.ContainsAny(id, " \t\n{}") {
+		return ""
+	}
+	return id
+}
+
+// initOffset: first claim ever starts after the legacy cursor (last_handled id) if found; else
+// after the notified watermark (lines past it were never announced, so they are unhandled);
+// else at EOF, so history is never replayed. EOF is a moving target, so it is the last resort:
+// using it while a watermark exists hid every new line from Pending.
 func (ib *Inbox) initOffset(inbox string) int64 {
 	if lh := ib.lastHandledEnd(inbox); lh >= 0 {
 		return lh
 	}
-	return completeSize(inbox)
+	size := completeSize(inbox)
+	var ns notifiedState
+	if readJSON(ib.notifiedPath(), &ns) == nil && ns.Offset > 0 && ns.Offset <= size {
+		return ns.Offset
+	}
+	return size
 }
 
 // handledOffset is where unhandled lines start: the claimed offset, moved forward past the
