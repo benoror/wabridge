@@ -62,9 +62,13 @@ func newClient(ctx context.Context, profile string) (*whatsmeow.Client, string) 
 
 func main() {
 	if len(os.Args) < 2 {
-		die("usage: wabridge pair|run|send|forward|poll|typing|set-photo|notify-test|inbox --profile NAME [--to JID --text TEXT] [--qr PATH]")
+		die("usage: wabridge pair|run|send|forward|poll|typing|set-photo|notify-test|inbox|version --profile NAME [--to JID --text TEXT] [--qr PATH]")
 	}
 	cmd := os.Args[1]
+	if cmd == "version" || cmd == "--version" {
+		fmt.Println("wabridge", versionString())
+		return
+	}
 	if cmd == "inbox" {
 		inboxCmd(os.Args[2:])
 		return

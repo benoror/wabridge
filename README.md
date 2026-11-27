@@ -42,6 +42,14 @@ Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon
 - **Profile photo.** `wabridge set-photo` sets or removes the number's own profile photo.
 - **Phone number or JID.** Send to a phone number and wabridge resolves the WhatsApp JID.
 
+## Install
+
+Download a binary for Linux or macOS (amd64/arm64) from [Releases](https://github.com/benoror/wabridge/releases) (each archive includes `scripts/` and `examples/`), or:
+
+```sh
+go install github.com/benoror/wabridge@latest   # or @v0.0.1-alpha
+```
+
 ## Quickstart
 
 ```sh
@@ -78,6 +86,7 @@ scripts/soak.sh            # go vet + replay suite + all tests; must end with "s
 - [docs/WAKE-CONTRACT.md](docs/WAKE-CONTRACT.md): the ping, claim and ack contract for any agent host
 - [docs/USAGE.md](docs/USAGE.md): full command, inbox-line and outbox reference
 - [docs/COMPARISON.md](docs/COMPARISON.md): feature and gap table vs wacli
+- [examples/](examples/): a generic wake handler and inbox routine (both sides of the wake contract)
 
 ## How the wake loop works
 
