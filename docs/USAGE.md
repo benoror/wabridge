@@ -39,6 +39,27 @@ It prints an 8-character code; on the phone open WhatsApp > Linked devices > Lin
 Appends each inbound message as one JSON line to `~/.whatsapp-bridge/alice/inbox.jsonl`. Auto-reconnects.
 Exits if the device is logged out (re-pair).
 
+### History-sync replay (re-link backfill)
+After a re-link (fresh session after `logged_out`) WhatsApp does not re-deliver what was sent while the
+profile was logged out; the phone ships it inside HISTORY_SYNC blobs (`events.HistorySync`). The bridge
+writes those messages to `inbox.jsonl` only for chats listed in `<profile dir>/history_chats.txt` (one chat
+JID per line, `#` comments; a PN/LID alias of a listed JID also matches; re-read on every history event, no
+restart). No file or an empty file = replay off (fail closed). Only messages newer than the newest inbound
+(not from_me, not replay) `ts` already in the inbox when the run started (floored at 14 days back) and whose
+`id` is not already in the inbox are written. Same line shape as live messages plus `"replay": true,
+"source": "history_sync"`. Replay lines are pending/claimable and announced with one batched settle notice;
+the bridge never acks, never sends a media retry receipt and never sends anything to WhatsApp for them: the
+consumer dedupes and decides whether to ack. Logs carry counts only. Code: `history.go`.
+
+Because a missing `history_chats.txt` means a re-link loses the logged-out window, the bridge warns loudly
+when it is missing: `run` at start (stderr), `pair` after linking, `wabridge history-check --profile P` (exit
+4 when missing; no connection, never opens `session.db`), and `scripts/ensure.sh` prints
+`! WARN <p>: history_chats.txt missing ...` (exit code unchanged). They also scaffold
+`history_chats.txt.suggested`: every chat with inbound lines in `inbox.jsonl`, busiest first, with display
+names (joined groups, contacts, push names), **all lines commented out**; chats named like a shared display
+(screen, tablet, kiosk, TV) are listed as `EXCLUDED`. Nothing enables replay automatically: copy the wanted
+lines into `history_chats.txt` and uncomment them. Code: `historycfg.go`.
+
 ### Edits and deletes
 An edited message is appended as its own line `{"id": <edit's id>, "type": "edit", "edited_id": <original id>,
 "text": <full new text or caption>, "chat", "sender", "from_me", "ts", ...}`: a correction that replaces the earlier
@@ -188,8 +209,12 @@ disconnected, it forces Disconnect()+Connect() with backoff (5s doubling to 60s)
 and logs one `watchdog: reconnected (...)` line. If reconnecting fails for
 >5 min it exits 1. SIGTERM/SIGINT exit within ~5s even if the websocket close hangs.
 
-Without systemd, use the shell supervisor (restarts 5s after any exit,
-appends to `~/.whatsapp-bridge/<profile>/bridge.log`):
+Without systemd, use the shell supervisor (appends to `~/.whatsapp-bridge/<profile>/bridge.log`).
+It restarts after any exit with exponential backoff (5s doubling to a 5 min cap, back to 5s after a
+run longer than 10 min; tune with `SUP_BACKOFF_MIN`, `SUP_BACKOFF_MAX`, `SUP_RESET_AFTER`). When the
+profile is logged out (`state=logged_out`, or the child said `not paired`) a restart cannot help, so
+it **parks**: it writes `<profile>/supervise.parked` and stops launching wabridge, checking once a
+minute whether `session.db` changed (a re-pair) or the marker was removed, then resumes.
 
     setsid nohup scripts/supervise.sh alice >/dev/null 2>&1 &   # start
     kill "$(cat ~/.whatsapp-bridge/alice/supervise.pid)"         # stop (stops bridge too)
@@ -211,7 +236,7 @@ arrived since before the pause, reconnects at once with `resumed after X pause,
 transport silent for Y`. The old socket is dead by then, so if whatsmeow's graceful
 websocket close has not finished within 150ms the watchdog hard-closes the TCP socket
 (`graceful close stalled; dropped the socket`) instead of waiting out the 5s close
-timeout; resume-to-reconnected is ~1s. Messages sent during a pause arrive in the
+timeout; resume-to-reconnected is typically 1-2s. Messages sent during a pause arrive in the
 offline sync after resume, marked `offline`/`delayed`.
 
 ### After a host restart
@@ -220,7 +245,10 @@ Nothing restarts the supervisors (no systemd, no cron). `scripts/ensure.sh` is t
 idempotent check-and-start. It reads profiles from `~/.whatsapp-bridge/autostart`
 (one per line) or from its arguments, never touches a running supervisor, refuses to
 start next to an unsupervised `wabridge run`, and prints ok|started|stale|down|blocked
-per profile (exit 0 = all ok/started). `--check` only reports.
+per profile (exit 0 = all ok/started). `--check` only reports. A parked supervisor shows as
+`not ok (logged_out; ... parked ...)`, and a logged-out profile that has not been re-paired since
+(`session.db` not newer than `status.json`, or unchanged since the park) is never started: run
+`wabridge pair` first.
 
     scripts/ensure.sh            # call first in each agent run
     scripts/ensure.sh --check
@@ -232,3 +260,9 @@ descriptive `type`: `album` (parent of a photo group; `album_images`,
 `album_videos`), `contact`, `contacts`, `location` (`lat`,`lng`),
 `live_location`, `poll`; otherwise `media` with `subtype` (proto field name).
 Round video notes (ptv) are downloaded like videos.
+
+## Profile photo
+
+`wabridge set-photo --profile NAME --image PATH` sets the account's own WhatsApp profile photo (JPEG/PNG,
+center-cropped to a square, 640px plus a 96px preview). `--image -` removes it. Needs the bridge running:
+the CLI drops a request in `<profile>/photo/` and prints `{"ok":true,"picture_id":"..."}` or the error.

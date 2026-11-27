@@ -21,12 +21,12 @@ Sources (read 2026-11-13): wacli [README](https://github.com/openclaw/wacli/blob
 | Distribution | build from source | Homebrew, release archives (macOS/Linux/Windows), Docker |
 | Accounts | one process per number (`--profile`) | named accounts, each an isolated store (`--account`) |
 | Message storage | append-only `inbox.jsonl` per profile | SQLite store (`wacli.db`) with full-text search |
-| History backfill / search | no | yes (`history`, `messages search`) |
+| History backfill / search | re-link backfill from history sync for allowlisted chats (`history_chats.txt`); no search | yes (`history`, `messages search`) |
 | Agent hand-off | claims with expiring leases, `done`/`release`, `last_handled` cursor | read via CLI `--json` or read-only SQLite; no claim/lease concept |
 | Webhook | content-free wake ping (count, timestamp, chat ids), Bearer auth | message payload (`sync --webhook`), optional `X-Wacli-Signature` HMAC-SHA256 |
 | Webhook delivery | debounced, 60 s cooldown, deferred not dropped, retried while lines are pending | best-effort; "retries/backoff are intentionally out of scope" (docs/sync.md) |
 | Dedupe | persisted chat+id set (`seen.log`) | store-level (upserts into `wacli.db`) |
-| Host suspend / resume | frozen-gap detection, ~1 s reconnect on resume, hard deadlines, wedge exit | not a stated goal; has `--max-reconnect`, `--stale-threshold` on sync |
+| Host suspend / resume | frozen-gap detection, reconnect 1-2 s after resume, hard deadlines, wedge exit | not a stated goal; has `--max-reconnect`, `--stale-threshold` on sync |
 | Outbound | outbox files with stable ids and id-reusing retries; text, reply, forward, image, document, voice note (local TTS), typing | `send text` / `send file` (up to 2 GiB with `--max-size-mb`), delegation to a running `sync` |
 | Inbound media | downloaded before the inbox line is written (image, video, video note, audio, document, sticker) | `media` downloads synced media |
 | Voice notes | inbound transcription with local whisper.cpp (`transcript_update` line); outbound voice notes from a file or local TTS | not checked |

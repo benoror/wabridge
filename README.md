@@ -1,8 +1,14 @@
+<p align="center">
+  <img src="docs/assets/wabridge-logo.svg" alt="wabridge" width="360">
+</p>
+
 # wabridge
+
+[![Go Reference](https://pkg.go.dev/badge/github.com/benoror/wabridge.svg)](https://pkg.go.dev/github.com/benoror/wabridge)
 
 **WhatsApp for AI agents that sleep.**
 
-wabridge links an AI agent to a WhatsApp number as a linked device, keeps every inbound message in a durable local inbox, and wakes the agent with a ping that carries no message content. The agent can sleep, get suspended, or crash mid-turn, and nothing gets lost or answered twice.
+wabridge links an AI agent to a WhatsApp number as a linked device, keeps every inbound message in a durable local inbox, and wakes the agent with a ping that carries no message content. The agent can sleep, get suspended, or crash mid-turn, and nothing gets lost; a reply sent with the lease's stable id is never sent twice.
 
 Single static Go binary. Built on [whatsmeow](https://github.com/tulir/whatsmeow). MIT.
 
@@ -19,7 +25,7 @@ Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon
 - **Fast, single Go binary.** Pure Go (`CGO_ENABLED=0` works), one small process per number, no runtime or database server to install.
 - **Durable, persistent inbox.** Every inbound message is appended to a per-number `inbox.jsonl`. Consumers claim lines under an expiring lease and mark them done; a crashed or paused run's lines come back on their own. State survives restarts, crashes and host pauses.
 - **Exactly-once-ish delivery.** Dedupe by chat and message id, stable outbox ids, and send retries that reuse the same id, so a retry never double-sends.
-- **Survives suspend and resume.** Frozen-gap detection reconnects within about a second of resume, every dial and connect has a hard deadline, and a watchdog exits for the supervisor instead of wedging.
+- **Survives suspend and resume.** Frozen-gap detection reconnects a second or two after resume, every dial and connect has a hard deadline, and a watchdog exits for the supervisor instead of wedging.
 - **Private by design.** Wake pings carry no message content (a count, a timestamp and chat ids). Messages, media and keys stay on the local disk.
 - **One process per number.** A logout, ban or hang on one number can't take the others down.
 - **Tested daily on my own workflows**, plus unit tests and a replay soak suite over synthetic fixtures (`scripts/soak.sh` must print `soak: OK` before any live restart).
@@ -32,6 +38,8 @@ Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon
 - **Groups.** Group messages carry the chat and the sender; claims split each batch by chat and sender, so each person can be answered separately.
 - **Replies, forwards, polls and typing.** Quoted replies, forwards, poll marking with vote wake-ups, chunked replies with stable per-chunk ids, and typing/recording presence.
 - **Contacts, locations and late messages.** Shared contacts and locations get real types; late offline-sync messages are flagged `delayed`, never dropped.
+- **History-sync replay after a re-link.** Messages sent while a number was logged out are recovered from WhatsApp's history sync, only for chats you allowlist (fail closed), flagged `replay`.
+- **Profile photo.** `wabridge set-photo` sets or removes the number's own profile photo.
 - **Phone number or JID.** Send to a phone number and wabridge resolves the WhatsApp JID.
 
 ## Quickstart

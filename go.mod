@@ -1,4 +1,4 @@
-module wabridge
+module github.com/benoror/wabridge
 
 go 1.26.0
 
