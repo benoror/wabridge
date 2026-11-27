@@ -105,7 +105,15 @@ func watchLeases(ctx context.Context, every time.Duration, check func()) {
 }
 
 // Handle processes one events.Message (the body of main's former inline case).
-func (p *MsgPipe) Handle(v *events.Message) {
+func (p *MsgPipe) Handle(v *events.Message) { p.handle(v, false) }
+
+// HandleReplay writes one message recovered from a history sync (see history.go). Same line shape,
+// plus "replay": true and "source": "history_sync". It never sends anything to WhatsApp (no media
+// retry receipt) and never fires a per-message notice: one batched settle notice instead, so the
+// routine can claim, dedupe and decide whether to ack. Returns whether a line was written.
+func (p *MsgPipe) HandleReplay(v *events.Message) bool { return p.handle(v, true) }
+
+func (p *MsgPipe) handle(v *events.Message, replay bool) bool {
 	if v.Message.GetEncReactionMessage() != nil && p.DecryptReaction != nil {
 		if rm, err := p.DecryptReaction(v); err != nil {
 			p.Log("inbox: encrypted reaction not decrypted (id %s): %v", v.Info.ID, err)
@@ -115,14 +123,14 @@ func (p *MsgPipe) Handle(v *events.Message) {
 	}
 	pl := classifyProtocol(v) // edits, deletes, housekeeping protocol messages
 	if p.Seen.Has(v.Info.Chat, pl.SeenID) {
-		return // true duplicate (reconnect/retry/offline sync): this chat+id is already in the inbox
+		return false // true duplicate (reconnect/retry/offline sync): this chat+id is already in the inbox
 	}
 	if pl.Skip { // never an empty line: nothing a bot can act on
 		p.Log("inbox: skipped %s (id %s)", pl.Reason, v.Info.ID)
 		if !pl.NoMark {
 			p.Seen.Mark(v.Info.Chat, pl.SeenID)
 		}
-		return
+		return false
 	}
 	m := v.Message
 	ts := v.Info.Timestamp.UTC().Format(time.RFC3339)
@@ -163,7 +171,7 @@ func (p *MsgPipe) Handle(v *events.Message) {
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "media download failed:", v.Info.ID, err)
-		if isExpired(err) {
+		if isExpired(err) && !replay { // replay never sends to WhatsApp (not even a retry receipt)
 			info := v.Info
 			if e := p.retryReceipt(&info, d.GetMediaKey()); e != nil {
 				fmt.Fprintln(os.Stderr, "media retry request failed:", v.Info.ID, e)
@@ -199,19 +207,25 @@ func (p *MsgPipe) Handle(v *events.Message) {
 	// delayed/offline are informational only: a late-delivered message is still new and
 	// unhandled, so it is claimable and notified like any other (only seen.log duplicates
 	// and already-claimed offsets are ever skipped).
-	delayed, offline := p.Gate.Classify(v.Info.Timestamp, p.now())
-	if delayed {
-		line["delayed"] = true
-	}
-	if offline {
-		line["offline"] = true
+	var offline bool
+	if replay { // history sync: the live gate is not consulted (and its catch-up clock not touched)
+		line["replay"], line["source"] = true, "history_sync"
+	} else {
+		var delayed bool
+		delayed, offline = p.Gate.Classify(v.Info.Timestamp, p.now())
+		if delayed {
+			line["delayed"] = true
+		}
+		if offline {
+			line["offline"] = true
+		}
 	}
 	p.Write(line)
 	p.Seen.Mark(v.Info.Chat, pl.SeenID)
 	notify := func() {
 		switch {
 		case v.Info.IsFromMe, isUpdateLine(pl.Type): // media/transcript updates are recorded, never announced on their own
-		case offline:
+		case offline, replay:
 			p.Settle(p.OfflineSettle) // batch: one notice once the offline sync settles
 		default:
 			p.Notify(v.Info.Chat.String(), ts)
@@ -219,9 +233,10 @@ func (p *MsgPipe) Handle(v *events.Message) {
 	}
 	if mp, _ := line["media_path"].(string); p.STT != nil && mp != "" && m.GetAudioMessage() != nil &&
 		p.STT.Submit(sttJob{ID: string(v.Info.ID), Chat: v.Info.Chat.String(), Path: mp, Done: notify}) {
-		return // webhook fires once the transcript line is written
+		return true // webhook fires once the transcript line is written
 	}
 	notify()
+	return true
 }
 
 // emptyTextKind names what an empty-text, no-media "text" message really is. Known kinds reuse

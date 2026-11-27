@@ -108,10 +108,8 @@ func readJSON(p string, v any) error {
 // one in <profile>/last_handled ({"id":..,"ts":..}, written by bots that track a cursor instead
 // of claim/done), or -1 if there is no such file or line.
 func (ib *Inbox) lastHandledEnd(inbox string) int64 {
-	var lh struct {
-		ID string `json:"id"`
-	}
-	if readJSON(filepath.Join(ib.Dir, "last_handled"), &lh) != nil || lh.ID == "" {
+	id := readLastHandledID(filepath.Join(ib.Dir, "last_handled"))
+	if id == "" {
 		return -1
 	}
 	f, err := os.Open(inbox)
@@ -128,9 +126,12 @@ func (ib *Inbox) lastHandledEnd(inbox string) int64 {
 		}
 		off += int64(len(line))
 		var m struct {
-			ID string `json:"id"`
+			ID   string `json:"id"`
+			Type string `json:"type"`
 		}
-		if json.Unmarshal(line, &m) == nil && m.ID == lh.ID {
+		// Update lines (transcript_update, media_update) reuse the original message id; matching
+		// them would move the cursor past every line between the message and its late update.
+		if json.Unmarshal(line, &m) == nil && m.ID == id && !isUpdateLine(m.Type) {
 			found = off
 		}
 		if err != nil {
@@ -149,13 +150,41 @@ func completeSize(inbox string) int64 {
 	return int64(bytes.LastIndexByte(b, '\n') + 1)
 }
 
-// initOffset: first claim ever starts after the legacy cursor (last_handled id) if found, else at EOF,
-// so history is never replayed.
+// readLastHandledID accepts {"id":..,"ts":..} or a bare id on one line (some consumers write the
+// bare id). Without this a bare id failed JSON parsing, the cursor was ignored, and with no
+// claims/state.json every settle check started at EOF: 0 pending forever.
+func readLastHandledID(p string) string {
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	var lh struct {
+		ID string `json:"id"`
+	}
+	if json.Unmarshal(b, &lh) == nil {
+		return lh.ID
+	}
+	id := strings.Trim(strings.TrimSpace(string(b)), `"`)
+	if id == "" || strings.ContainsAny(id, " \t\n{}") {
+		return ""
+	}
+	return id
+}
+
+// initOffset: first claim ever starts after the legacy cursor (last_handled id) if found; else
+// after the notified watermark (lines past it were never announced, so they are unhandled);
+// else at EOF, so history is never replayed. EOF is a moving target, so it is the last resort:
+// using it while a watermark exists hid every new line from Pending.
 func (ib *Inbox) initOffset(inbox string) int64 {
 	if lh := ib.lastHandledEnd(inbox); lh >= 0 {
 		return lh
 	}
-	return completeSize(inbox)
+	size := completeSize(inbox)
+	var ns notifiedState
+	if readJSON(ib.notifiedPath(), &ns) == nil && ns.Offset > 0 && ns.Offset <= size {
+		return ns.Offset
+	}
+	return size
 }
 
 // handledOffset is where unhandled lines start: the claimed offset, moved forward past the
@@ -167,6 +196,47 @@ func (ib *Inbox) handledOffset(inbox string, st claimState) int64 {
 		return lh
 	}
 	return st.Offset
+}
+
+// syncLastHandled makes <profile>/last_handled a mirror of the claim offset, the one source of
+// truth for "handled". It writes {"id","ts"} of the last non-update line before end, and only
+// moves forward. Without it, a bot that reads inbox.jsonl after last_handled could keep an older
+// cursor than the bridge and replay lines that claim/done had already handled. Call under withLock.
+func (ib *Inbox) syncLastHandled(inbox string, end int64) error {
+	if end <= 0 || ib.lastHandledEnd(inbox) >= end {
+		return nil
+	}
+	f, err := os.Open(inbox)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	r := bufio.NewReader(io.LimitReader(f, end))
+	var lh struct {
+		ID string `json:"id"`
+		TS string `json:"ts"`
+	}
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) == 0 || line[len(line)-1] != '\n' {
+			break
+		}
+		var m struct {
+			ID   string `json:"id"`
+			TS   string `json:"ts"`
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(line, &m) == nil && m.ID != "" && !isUpdateLine(m.Type) {
+			lh.ID, lh.TS = m.ID, m.TS
+		}
+		if err != nil {
+			break
+		}
+	}
+	if lh.ID == "" {
+		return nil
+	}
+	return atomicWrite(filepath.Join(ib.Dir, "last_handled"), lh)
 }
 
 // Claim atomically takes every complete inbox line after the claimed offset (or a released/expired
@@ -246,7 +316,11 @@ func (ib *Inbox) Claim(ttl time.Duration) (*Lease, error) {
 		start := st.Offset
 		st.Offset = end
 		if inbound == 0 { // only own sends / updates: advance quietly, nothing to handle
-			return atomicWrite(sp, st)
+			if err := atomicWrite(sp, st); err != nil {
+				return err
+			}
+			ib.syncLastHandled(inbox, end) // after state commits; a lagging mirror is caught next claim
+			return nil
 		}
 		nl := &Lease{ID: randHex(8), Start: start, End: end, Messages: msgs, Expires: now.Add(ttl)}
 		nl.MsgID = leaseMsgID(nl.ID)
@@ -257,6 +331,7 @@ func (ib *Inbox) Claim(ttl time.Duration) (*Lease, error) {
 			os.Remove(filepath.Join(cd, "leases", nl.ID+".json"))
 			return err
 		}
+		ib.syncLastHandled(inbox, end)
 		out = nl
 		return nil
 	})

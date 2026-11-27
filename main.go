@@ -62,15 +62,19 @@ func newClient(ctx context.Context, profile string) (*whatsmeow.Client, string) 
 
 func main() {
 	if len(os.Args) < 2 {
-		die("usage: wabridge pair|run|send|forward|poll|typing|notify-test|inbox --profile NAME [--to JID --text TEXT] [--qr PATH]")
+		die("usage: wabridge pair|run|send|forward|poll|typing|set-photo|notify-test|inbox --profile NAME [--to JID --text TEXT] [--qr PATH]")
 	}
 	cmd := os.Args[1]
 	if cmd == "inbox" {
 		inboxCmd(os.Args[2:])
 		return
 	}
+	if cmd == "history-check" {
+		historyCheckCmd(os.Args[2:])
+		return
+	}
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
-	profile := fs.String("profile", "", "profile name (e.g. alice)")
+	profile := fs.String("profile", "", "profile name (e.g. work)")
 	qrPath := fs.String("qr", "", "QR PNG path (default ./<profile>-qr.png)")
 	pairPhone := fs.String("phone", "", "pair: link with phone number instead of QR (international digits, e.g. 5218112345678); prints an 8-character code to enter on the phone")
 	to := fs.String("to", "", "recipient JID or phone number")
@@ -141,6 +145,31 @@ func main() {
 			die("typing: %v", err)
 		}
 		fmt.Printf("{\"ok\":true,\"state\":%q,\"for_ms\":%d}\n", *presState, presFor.Milliseconds())
+		return
+	}
+	if cmd == "set-photo" {
+		rm := *imageFile == "-"
+		if *imageFile == "" {
+			die("set-photo needs --image PATH (JPEG/PNG, square-cropped to 640px) or --image - to remove")
+		}
+		d := profileDir(*profile)
+		if !runActive(d) {
+			die("set-photo needs the bridge running")
+		}
+		path := *imageFile
+		if !rm {
+			if abs, err := filepath.Abs(path); err == nil {
+				path = abs
+			}
+		}
+		res, err := requestPhoto(d, PhotoReq{Image: path, Remove: rm}, 45*time.Second)
+		if err != nil {
+			die("set-photo: %v", err)
+		}
+		if !res.OK {
+			die("set-photo failed: %s", res.Error)
+		}
+		fmt.Printf("{\"ok\":true,\"picture_id\":%q}\n", res.PictureID)
 		return
 	}
 	if cmd == "forward" {
@@ -277,6 +306,11 @@ func main() {
 				os.Remove(*qrPath)
 				fmt.Println("paired")
 				time.Sleep(3 * time.Second) // let initial sync settle
+				refreshHistorySuggested(ctx, cl, dir, *profile)
+				if w := historyMissingWarning(dir, *profile); w != "" {
+					fmt.Fprintln(os.Stderr, w)
+					appendBridgeLog(dir, "pair: "+w)
+				}
 				cl.Disconnect()
 				return
 			default:
@@ -389,6 +423,17 @@ func main() {
 			STT:          stt, Settle: settle.Trigger, Notify: notif.Add, ConnectSettle: connectSettle, OfflineSettle: offlineSettle,
 			IsPoll:          func(id string) bool { return pollMarked(dir, id) },
 			DecryptReaction: func(v *events.Message) (*waE2E.ReactionMessage, error) { return cl.DecryptReaction(ctx, v) }}
+		hist := &HistoryReplayer{Dir: dir, InboxPath: f.Name(), Pipe: pipe, Log: logf,
+			Parse: cl.ParseWebMessage,
+			Alt: func(j types.JID) types.JID {
+				a, _ := cl.Store.GetAltJID(ctx, j)
+				return a
+			}}
+		hist.Init() // watermark from the inbox before this run appends anything
+		if w := historyMissingWarning(dir, *profile); w != "" {
+			logf("%s", w) // stderr = bridge.log under supervise.sh
+		}
+		var suggestOnce sync.Once
 		wd := NewWatchdog(cl)
 		wd.Drop = func() { wsConns.DropAll() }
 		health.WD = wd
@@ -434,12 +479,20 @@ func main() {
 				}()
 				wd.KeepAliveOK()
 				pipe.Connected() // (re)connect / process start: notify if anything is pending
+				suggestOnce.Do(func() {
+					go func() {
+						n := refreshHistorySuggested(ctx, cl, dir, *profile)
+						logf("history: %s refreshed (%d candidate chat(s), not enabled)", HistorySuggestedFile, n)
+					}()
+				})
 			case *events.KeepAliveRestored:
 				wd.KeepAliveOK()
 			case *events.Disconnected:
 				if health.State() == "connected" { // never mask stream_replaced / logged_out
 					health.Set("disconnected", "socket closed; watchdog/auto-reconnect pending")
 				}
+			case *events.HistorySync:
+				hist.Handle(v) // allowlisted chats only, flagged replay; see history.go
 			case *events.OfflineSyncPreview:
 				pipe.OfflineSync(true)
 			case *events.OfflineSyncCompleted:
@@ -536,6 +589,9 @@ func main() {
 		go ob.Watch(ctx)
 		go watchLeases(ctx, 30*time.Second, func() { leaseCheck(ib, notif, logf) }) // dead runs' leases
 		go pres.WatchRequests(ctx, presenceDir(dir))
+		go WatchPhotoRequests(ctx, photoDir(dir), func(ctx context.Context, img []byte) (string, error) {
+			return setOwnPhoto(ctx, cl, img)
+		})
 		fmt.Println("running; inbox:", f.Name(), "webhook:", notif.URL != "", "webhook_auth:", notif.Key != "")
 		hbDone := make(chan struct{})
 		defer close(hbDone)
@@ -584,4 +640,29 @@ func main() {
 	default:
 		die("unknown command %s", cmd)
 	}
+}
+
+// refreshHistorySuggested rewrites history_chats.txt.suggested with group names from the server
+// (GetJoinedGroups, a read-only query) and contact names from the store. Best effort, bounded.
+func refreshHistorySuggested(ctx context.Context, cl *whatsmeow.Client, dir, profile string) int {
+	names := map[string]string{}
+	c, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	if gs, err := cl.GetJoinedGroups(c); err == nil {
+		for _, g := range gs {
+			names[g.JID.ToNonAD().String()] = g.Name
+		}
+	}
+	if cs, err := cl.Store.Contacts.GetAllContacts(c); err == nil {
+		for j, ci := range cs {
+			if n := firstNonEmpty(ci.FullName, ci.FirstName, ci.BusinessName, ci.PushName); n != "" {
+				names[j.ToNonAD().String()] = n
+			}
+		}
+	}
+	n, err := writeHistorySuggested(dir, profile, names, time.Now())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "history: writing suggestions failed:", err)
+	}
+	return n
 }

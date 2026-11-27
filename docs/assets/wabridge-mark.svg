@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="wabridge">
+  <title>wabridge</title>
+  <defs>
+    <mask id="m-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <path d="M14 14H40A10 10 0 0 1 50 24V40A10 10 0 0 1 40 50H23L12 59.5V50A10 10 0 0 1 4 40V24A10 10 0 0 1 14 14Z" fill="#000" stroke="#000" stroke-width="7" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <g transform="translate(0 0) scale(1)">
+    <rect x="14" y="4" width="46" height="36" rx="10" fill="#6366f1" fill-opacity="0.55" mask="url(#m-cut)"/>
+    <path d="M14 14H40A10 10 0 0 1 50 24V40A10 10 0 0 1 40 50H23L12 59.5V50A10 10 0 0 1 4 40V24A10 10 0 0 1 14 14Z" fill="#6366f1"/>
+    <g fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 26H44"/>
+      <path d="M10 43C10 31 17 26 27 26C37 26 44 31 44 43"/>
+    </g>
+  </g>
+</svg>
