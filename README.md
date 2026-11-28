@@ -20,13 +20,9 @@ Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon
 
 It was originally developed to work with [Grok Bot](https://x.ai/bot), to work around agent turns and the box/VM sleep model: the agent isn't always running, and the machine it runs on pauses when idle. Nothing in the core depends on that platform, and it could be adapted to other AI assistants and environments with similar constraints (see the [roadmap](#roadmap)).
 
-<p align="center">
-  <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-square.mp4">
-    <img src="docs/media/wabridge-v0.0.1-alpha-wake-loop-poster.png" alt="The wabridge wake loop (44-second video, click to play)" width="540">
-  </a>
-  <br>
-  <sub>▶ <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-square.mp4">Watch the wake loop (44 s, MP4)</a> · <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-widescreen.mp4">16:9 version</a></sub>
-</p>
+https://github.com/user-attachments/assets/4d1433a0-0df6-43ff-b71a-b11d1777b65c
+
+<sub>The wake loop in 44 seconds. Also as a <a href="docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-widescreen.mp4">16:9 MP4</a> and a <a href="docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-square.mp4">square MP4</a>.</sub>
 
 ## Key features
 
