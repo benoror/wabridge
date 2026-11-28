@@ -18,6 +18,16 @@ Single static Go binary. Built on [whatsmeow](https://github.com/tulir/whatsmeow
 
 Most WhatsApp-for-agents projects assume the agent's host is always on: a daemon holds the socket, and messages get pushed into a webhook or an in-memory queue. That breaks the moment your agent runs somewhere that pauses when idle (serverless-ish sandboxes, laptops, agent platforms that freeze a VM between turns). wabridge is built for that world.
 
+It was originally developed to work with [Grok Bot](https://x.ai/bot), to work around agent turns and the box/VM sleep model: the agent isn't always running, and the machine it runs on pauses when idle. Nothing in the core depends on that platform, and it could be adapted to other AI assistants and environments with similar constraints (see the [roadmap](#roadmap)).
+
+<p align="center">
+  <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-square.mp4">
+    <img src="docs/media/wabridge-v0.0.1-alpha-wake-loop-poster.png" alt="The wabridge wake loop (44-second video, click to play)" width="540">
+  </a>
+  <br>
+  <sub>▶ <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-square.mp4">Watch the wake loop (44 s, MP4)</a> · <a href="https://github.com/benoror/wabridge/raw/main/docs/media/wabridge-v0.0.1-alpha-wake-loop-grok-example-widescreen.mp4">16:9 version</a></sub>
+</p>
+
 ## Key features
 
 **Core**
@@ -118,10 +128,6 @@ If the host was suspended, WhatsApp holds the messages on its side and delivers 
 | Searchable history | Not yet | Yes, excellent | Yes | Varies |
 
 If you want a full WhatsApp CLI with searchable history and multi-account, use wacli. It's great. wabridge is narrower on purpose: the reliable inbox and outbox loop for an agent that isn't always awake.
-
-## Origin
-
-wabridge was originally developed to work with [Grok Bot](https://x.ai/bot), to work around agent turns and the box/VM sleep model: the agent isn't always running, and the machine it runs on pauses when idle. Nothing in the core depends on that platform, and it could be adapted to other AI assistants and environments with similar constraints (see the roadmap).
 
 ## Roadmap
 
